@@ -1,0 +1,79 @@
+5.1)
+path_gini='../../curso_ciencia_dados2020/data/originais/gini/ginibr.csv'
+df_gini = pd.read_csv(path_gini, sep=';', na_values='...', decimal=',', skiprows=2, skipfooter=2, encoding='utf8', engine='python')
+df_gini.head()
+
+df_unpivoted = df_gini.melt(id_vars=['Município'], var_name='data', value_name='gini')
+df_unpivoted.head()
+sns.catplot(x='data', y='gini', data=df_unpivoted, kind='box')
+# Feedback
+Você não precisa especificar os quartis... basta usar o box plot passando o dataset. Perceba que faltou os outliers no seu gráfico.
+
+
+5.2) from datetime import datetime
+import locale
+locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+path_curetagem='../../curso_ciencia_dados2020/data/originais/curetagem/consolidado/curetagem2018.xlsx'
+df_curetagem = pd.read_excel(path_curetagem, na_values='-')
+df_curetagem.rename(columns={'Unidade da Federação': 'uf'}, inplace=True)
+del df_curetagem['Total']
+df_unpivoted = df_curetagem.melt(id_vars=['uf'], var_name='data', value_name='qtd')
+df_SP = df_unpivoted.loc[df_unpivoted['uf']=='35 São Paulo', :]
+df_SP.loc[:,'data'] = df_SP.loc[:,'data'].apply(lambda x: datetime.strptime(x, '%Y/%b'))
+sns.relplot(x="data", y="qtd", hue="uf", aspect=2,
+            kind="line", data=df_SP);
+
+5.3) 
+tips = sns.load_dataset("tips") 
+sns.boxplot(x="day", y="total_bill",
+            hue="smoker", 
+            data=tips)
+
+5.4) 
+path_morbidade = '../../curso_ciencia_dados2020/data/originais/morbidade/consolidado/morbidade.csv'
+path_pop = '../../curso_ciencia_dados2020/data/originais/populacao/estimativa_dou_2017.xlsx'
+
+def merge_morbidade_pop(path_pop, path_morbidade):
+    """retorne o merge dos datasets de população e morbidade.
+    """
+    ### BEGIN SOLUTION
+    df_pop = pd.read_excel(path_pop, sheet_name="Municipios", dtype={'cod_munic': str, 'cod_uf': str})
+    # Concatena o codigo da UF com o codigo do municipio
+    df_pop['cod_ibge6'] = df_pop['cod_uf'] + df_pop['cod_munic'].apply(lambda x: x[:-1])
+    df_morbidade = pd.read_csv(path_morbidade, sep=';', decimal=',', dtype={'cod_ibge6': str}, 
+                               na_values=['-', '...'])
+
+    return pd.merge(df_pop, df_morbidade, on='cod_ibge6') 
+
+
+
+df_morbidade_pop = merge_morbidade_pop(path_pop, path_morbidade)
+df_internacoes = df_morbidade_pop.groupby(['uf','municipio','cod_ibge6']).agg({'Valor_total': 'sum', 'Internações': 'sum', 'Dias_permanência': 'sum'})
+df_internacoes['custo_medio_diario_intern'] = df_internacoes['Valor_total']/df_internacoes['Dias_permanência']
+top5 = df_internacoes.sort_values(by='custo_medio_diario_intern', ascending = False).iloc[:5].reset_index()['cod_ibge6']
+
+top5_custos = df_morbidade_pop[df_morbidade_pop['cod_ibge6'].isin(top5)]
+sns.catplot(x="Município", y="Valor_total", 
+            kind="box", data=top5_custos, aspect=2);
+
+#########Feedback
+Voce deveria ter plotado os dados do dataframe df_internacoes restrito aos municipios que voce encontrou no top5. Veja como ficaria:
+top5_custos = df_morbidade_pop[df_morbidade_pop['cod_ibge6'].isin(top5)]
+sns.catplot(x="Município", y="Valor_total", kind="box", data=top5_custos, aspect=2);
+
+5.5)
+def merge_morbidade_gini(path_gini, path_morbidade):
+    """retorne o merge dos datasets de gini e morbidade.
+    """
+    ### BEGIN SOLUTION
+    df_gini = pd.read_csv(path_gini, sep=';', skiprows=2, skipfooter=2, encoding='utf8',
+                          engine='python', na_values='...', decimal=',')
+    df_gini['cod_ibge6'] = df_gini['Município'].apply(lambda x: x.split(' ')[0])
+    df_gini.loc[:, 'Município'] = df_gini.loc[:,'Município'].apply(lambda x: ' '.join(x.split(' ')[1:]))
+    df_morbidade = pd.read_csv(path_morbidade, sep=';', decimal=',', dtype={'cod_ibge6': str},
+                               na_values=['-', '...'])    return pd.merge(df_gini, df_morbidade, on=['cod_ibge6', 'Município']) (edited) 
+
+sns.pairplot(df[['Internações',  'Óbitos', '2010']])
+
+#Feedback 
+Você não plotou o pairplot das 3 colunas solicitadas:  'Internações', 'Óbitos', '2010'
